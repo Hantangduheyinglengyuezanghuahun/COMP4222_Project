@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# OS/editor
+.DS_Store
+.vscode/
+
+# SLURM/logs
+logs/
+slurm-*.out
+
+# Data (raw and preprocessed)
+data/**
+!data/.gitkeep
+
+# Common artifacts
+*.pt
+*.parquet
+*.npz
+*.npy

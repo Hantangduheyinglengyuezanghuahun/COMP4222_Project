@@ -1,0 +1,18 @@
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10
+scikit-learn>=1.3
+implicit>=0.7.2
+torch>=2.2
+torch-geometric>=2.5
+# Optional for Parquet (recommended):
+pyarrow>=14.0
+fastparquet>=2023.8
+# If CUDA-specific builds needed, install torch/torch-geometric via official wheels/conda.
+# pandas==2.2.2
+# numpy==1.26.4
+# scipy>=1.10,<1.13
+# scikit-learn>=1.3,<1.5
+# implicit>=0.7.3
+# torch>=2.2
+# torch-geometric>=2.5
