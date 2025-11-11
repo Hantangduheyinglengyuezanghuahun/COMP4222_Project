@@ -1,4 +1,5 @@
-# project/eval.pyimport argparse
+# project/eval.py
+import argparse
 import numpy as np, pandas as pd
 from collections import defaultdict
 from pathlib import Path
