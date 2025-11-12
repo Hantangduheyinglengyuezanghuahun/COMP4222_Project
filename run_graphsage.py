@@ -13,23 +13,11 @@ def load_preprocessed(dataset_dir, category=None, use_a2=False):
         raise FileNotFoundError(f"{path} not found. Run dataset/pd.py first.")
     return torch.load(path)
 
-# (original build_hetero retained for backward compatibility)
-# def build_hetero(train):
-#     u_idx = pd.Index(train['user_id'].unique())
-#     i_idx = pd.Index(train['item_id'].unique())
-#     umap = {u:k for k,u in enumerate(u_idx)}
-#     imap = {i:k for k,i in enumerate(i_idx)}
-#     src = train['user_id'].map(umap).to_numpy()
-#     dst = train['item_id'].map(imap).to_numpy()
-#     ei = torch.tensor(np.vstack([src, dst]), dtype=torch.long)
-#     data = HeteroData()
-#     data['user'].num_nodes = len(umap)
-#     data['item'].num_nodes = len(imap)
-#     data['user','interacts','item'].edge_index = ei
-#     data['item','rev_interacts','user'].edge_index = ei.flip(0)
-#     data['user'].x = torch.arange(len(umap))[:,None].float()
-#     data['item'].x = torch.arange(len(imap))[:,None].float()
-#     return data, u_idx, i_idx, umap, imap
+def load_node2vec(dataset_dir, category, dim):
+    path = os.path.join(dataset_dir, f"{category}_node2vec_{dim}.pt")
+    if not os.path.exists(path):
+        return None
+    return torch.load(path, map_location="cpu")
 
 class SAGEEncoder(nn.Module):
     def __init__(self, hidden=64, out=64):
@@ -71,9 +59,37 @@ def main(args):
     data = data.to(device)
     print(f"Data loaded with {data['user'].num_nodes} users and {data['item'].num_nodes} items.")
 
+    n2v = load_node2vec(args.dataset_dir, prefix, args.hidden)
+    if n2v is not None:
+        # ensure features live on the same device/dtype as the graph
+        user_x = n2v['user_emb'].to(device=device, dtype=torch.float32)
+        item_x = n2v['item_emb'].to(device=device, dtype=torch.float32)
+        data['user'].x = user_x
+        data['item'].x = item_x
+        print(f"Loaded Node2Vec features: dim={data['user'].x.size(-1)} (on {data['user'].x.device})")
+
+    # build degrees (already on `device` because ei is on device)
+    ei = data['user','interacts','item'].edge_index
+    U = data['user'].num_nodes; I = data['item'].num_nodes
+    user_deg = torch.bincount(ei[0], minlength=U).float().unsqueeze(1)
+    item_deg = torch.bincount(ei[1], minlength=I).float().unsqueeze(1)
+    user_deg = (user_deg + 1.0).log()
+    item_deg = (item_deg + 1.0).log()
+
+    # concat on the same device
+    data['user'].x = torch.cat([data['user'].x, user_deg], dim=1)
+    data['item'].x = torch.cat([data['item'].x, item_deg], dim=1)
+
     class LinkPredictor(nn.Module):
         def __init__(self, hidden=64, out=64):
             super().__init__()
+            self.user_id_emb = nn.Embedding(data['user'].num_nodes, hidden)
+            self.item_id_emb = nn.Embedding(data['item'].num_nodes, hidden)
+            n2v = load_node2vec(args.dataset_dir, prefix, hidden)
+            if n2v is not None:
+                with torch.no_grad():
+                    self.user_id_emb.weight.copy_(n2v['user_emb'])
+                    self.item_id_emb.weight.copy_(n2v['item_emb'])
             self.encoder = to_hetero(SAGEEncoder(hidden, out), data.metadata())
 
         def forward(self, data):
