@@ -25,10 +25,18 @@ class SAGEEncoder(nn.Module):
         self.user_emb = nn.Embedding(1, hidden)  # 仅占位；真正特征在 to_hetero 时替换
         self.item_emb = nn.Embedding(1, hidden)
         self.conv1 = SAGEConv((-1, -1), hidden)
+        self.mlp = nn.Sequential(
+            nn.Linear(hidden, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, hidden)
+        )
+        self.dropout = nn.Dropout(p=0.2)
         self.conv2 = SAGEConv((-1, -1), out)
 
     def forward(self, x, edge_index):
         x = self.conv1(x, edge_index).relu()
+        x = self.mlp(x)
+        x = self.dropout(x)
         x = self.conv2(x, edge_index)
         return x
 
@@ -171,9 +179,9 @@ if __name__ == "__main__":
     ap.add_argument("--category", default=None)
     ap.add_argument("--dataset-dir", default="data/loaded_data", help="Directory with preprocessed artifacts.")
     ap.add_argument("--use-a2", action="store_true", help="Load A^2 + A enriched graph.")
-    ap.add_argument("--hidden", type=int, default=64)
+    ap.add_argument("--hidden", type=int, default=128)
     ap.add_argument("--out", type=int, default=64)
-    ap.add_argument("--epochs", type=int, default=200)
+    ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=4096)
     ap.add_argument("--negs", type=int, default=1)
     ap.add_argument("--lr", type=float, default=1e-3)
