@@ -70,7 +70,14 @@ def main(args):
         top_items = [i_idx[i] for i,_ in pairs[:args.k]]
         rankings[u] = top_items
         current_done += 1
-        print(f"[INFO] User {u} done in {current_done} / {len(test_users)} candidates.")
+        total = len(test_users) or 1
+        progress = current_done / total
+        bar_len = 40
+        filled = int(bar_len * progress)
+        bar = '#' * filled + '-' * (bar_len - filled)
+        print(f"\r[INFO] Progress |{bar}| {current_done}/{total} ({progress:.1%})", end='')
+        if current_done == total:
+            print()
 
     gt = build_ground_truth(df, phase='test')
     rep = evaluate(rankings, gt, k_prec=args.kp, k_rec=args.kr, k_ndcg=args.kn)
@@ -78,7 +85,7 @@ def main(args):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="data/interactions.split.csv")
+    ap.add_argument("--input", default="data/interactions.Video_Games.split.csv")
     ap.add_argument("--category", default=None)       # Electronics / Video_Games
     ap.add_argument("--alpha", type=float, default=0.15)
     ap.add_argument("--iters", type=int, default=30)

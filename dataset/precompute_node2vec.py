@@ -1,3 +1,4 @@
+# Hyperparameter: epochs, dim
 import os, argparse, torch
 from torch_geometric.nn.models import Node2Vec
 
@@ -13,7 +14,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset-dir", default="data/loaded_data")
     ap.add_argument("--category", default="Video_Games")
-    ap.add_argument("--dim", type=int, default=64)
+    ap.add_argument("--dim", type=int, default=128)
     ap.add_argument("--walk-length", type=int, default=20)
     ap.add_argument("--context-size", type=int, default=10)
     ap.add_argument("--walks-per-node", type=int, default=10)
