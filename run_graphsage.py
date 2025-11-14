@@ -147,7 +147,8 @@ def main(args):
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     def save_ckpt(epoch, final=False):
         tag = f"final" if final else f"epoch{epoch+1}"
-        fname = f"{prefix}_graphsage_{tag}.pt"
+        use_a2_tag = "A2_plus_A" if args.use_a2 else "A"
+        fname = f"{prefix}_graphsage_{use_a2_tag}_{tag}.pt"
         path = os.path.join(args.checkpoint_dir, fname)
         torch.save({
             'epoch': epoch,
