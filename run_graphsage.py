@@ -229,6 +229,10 @@ def main(args):
             scores[ban_idx] = -1e9
         topk = torch.topk(scores, k=args.k).indices.tolist()
         rankings[u] = [i_idx[i] for i in topk]
+        total = len(test_users)
+        progress = (np.where(test_users == u)[0][0]+1)/total
+        if (total >= 10) and (int(progress*10)*10 % 10 == 0):
+            print(f"\r[INFO] Inference progress: {progress:.1%}", end='')
 
     gt = build_ground_truth(df, phase='test')
     rep = evaluate(rankings, gt, k_prec=args.kp, k_rec=args.kr, k_ndcg=args.kn)

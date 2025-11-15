@@ -105,6 +105,15 @@ def main():
     # Positives
     pos_u = eidx[0]; pos_i = eidx[1]
     bsz = args.bpr_batch
+
+    # Precompute item popularity (train) for biased negative sampling
+    import pandas as pd
+    item_pop = train['item_id'].map(imap).dropna().astype(int)
+    pop_counts = torch.bincount(torch.as_tensor(item_pop.values, device=device),
+                                minlength=I).float()
+    neg_prob = (pop_counts.pow(0.75) + 1e-8)
+    neg_prob = neg_prob / neg_prob.sum()
+
     if not args.eval_only:
         model.train()
         for epoch in range(start_epoch, args.epochs):
@@ -115,21 +124,28 @@ def main():
                 u_b = pos_u[idx]; p_b = pos_i[idx]
 
                 if args.negs <= 1:
-                    neg = torch.randint(0, I, (u_b.size(0),), device=device)
+                    neg = torch.multinomial(neg_prob, num_samples=u_b.size(0), replacement=True)
                     loss, reg = model.bpr_loss(u_b, p_b, neg)
                 else:
-                    # repeat users/positives so lengths match flattened negatives
+                    # Sample args.negs distinct negatives per positive (with replacement)
+                    neg = torch.multinomial(neg_prob, num_samples=u_b.size(0)*args.negs, replacement=True)
+                    # Expand users & positives
                     u_rep = u_b.repeat_interleave(args.negs)
                     p_rep = p_b.repeat_interleave(args.negs)
-                    neg = torch.randint(0, I, (u_rep.size(0),), device=device)
                     loss, reg = model.bpr_loss(u_rep, p_rep, neg)
+                    # Normalize multi-neg loss
+                    loss = loss / args.negs
 
                 loss = loss + args.decay * reg
-                opt.zero_grad(); loss.backward(); opt.step()
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
                 total += float(loss)
+
             with torch.no_grad():
                 model.embedding_user.weight.data = F.normalize(model.embedding_user.weight.data, p=2, dim=1)
                 model.embedding_item.weight.data = F.normalize(model.embedding_item.weight.data, p=2, dim=1)
+
             if (epoch+1) % 2 == 0:
                 print(f"[Train] epoch {epoch+1} loss {total:.4f}")
             if (epoch+1) % args.save_every == 0:

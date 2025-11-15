@@ -28,7 +28,7 @@ def evaluate(rankings, ground_truth, k_prec=10, k_rec=20, k_ndcg=10):
             hitk/ len(truth),
             ndcg_at_k(pred, truth, k_ndcg)
         ))
-    df = pd.DataFrame(rows, columns=['user_id','P@10','R@20','NDCG@10'])
+    df = pd.DataFrame(rows, columns=['user_id',f'P@{k_prec}',f'R@{k_rec}',f'NDCG@{k_ndcg}'])
     return df.describe().loc[['mean','std']]
 
 def main(args):
