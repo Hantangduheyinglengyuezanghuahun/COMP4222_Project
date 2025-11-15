@@ -259,6 +259,11 @@ def main(args):
         print("需要字段 parent_asin 或 asin", file=sys.stderr)
         sys.exit(1)
 
+    # 新增：选择 user 键（尽量兼容不同字段名）
+    user_key = "user_id" if ("user_id" in df.columns) else ("reviewerID" if "reviewerID" in df.columns else None)
+    if user_key is None:
+        log("[WARN] 未找到 user_id 或 reviewerID，评论索引中将用空字符串占位。")
+
     # 先过滤缺少 item_id 的行，再做编码，确保 df 与 Z 同步
     before = len(df)
     df = df[df[item_key].notna()].copy()
@@ -278,7 +283,7 @@ def main(args):
         if "helpful_vote" in df.columns:
             w *= (1.0 + df["helpful_vote"].fillna(0).to_numpy(dtype=np.float32))
         if "rating" in df.columns:
-            w *= (df["rating"].fillna(0).to_numpy(dtype=np.float32) / 5.0 + 0.5)  # 0.5~1.5
+            w *= (df["rating"].fillna(0).to_numpy(dtype=np.float32) / 5.0 + 0.5)
         df["_w"] = w
     else:
         df["_w"] = 1.0
@@ -300,6 +305,22 @@ def main(args):
             max_features=args.max_features
         )
 
+    # 新增：可选保存“评论级”向量及其(user,item)索引
+    if args.save_comment_emb:
+        log("Saving per-comment embeddings and index mapping ...")
+        c_emb_path = os.path.join(args.out_dir, "comment_text_emb.npy")
+        c_idx_path = os.path.join(args.out_dir, "comment_text_index.csv")
+        np.save(c_emb_path, Z.astype(np.float32))
+        # 生成索引表，与 Z 的行顺序一致
+        out_idx = pd.DataFrame({
+            "row": np.arange(len(df), dtype=np.int64),
+            "user_id": (df[user_key].astype(str) if user_key is not None else ""),
+            "item_id": df[item_key].astype(str)
+        })
+        out_idx.to_csv(c_idx_path, index=False)
+        log(f"saved: {c_emb_path}")
+        log(f"saved: {c_idx_path}")
+
     # 聚合到 item
     log(f"Grouping to items by '{item_key}' and aggregating (weighted mean) ...")
     item_ids, item_emb = aggregate_item_embeddings(
@@ -307,7 +328,7 @@ def main(args):
         group_log_every=args.group_log_interval
     )
 
-    # 保存
+    # 保存（item 级）
     emb_path = os.path.join(args.out_dir, "item_text_emb.npy")
     idx_path = os.path.join(args.out_dir, "item_text_index.csv")
     np.save(emb_path, item_emb)
@@ -372,6 +393,10 @@ if __name__ == "__main__":
     # 输出示例
     ap.add_argument("--show-examples", type=int, default=3,
                     help="保存后打印前 N 个 item 的向量前 8 维，0 表示不打印")
+
+    # 新增：是否保存评论级向量
+    ap.add_argument("--save-comment-emb", action="store_true",
+                    help="额外保存评论级文本向量(comment_text_emb.npy)与其(user_id,item_id)索引表。")
 
     args = ap.parse_args()
 

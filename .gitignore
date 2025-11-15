@@ -21,3 +21,6 @@ data/**
 *.parquet
 *.npz
 *.npy
+*.ckpt
+*.pkl
+*.log
