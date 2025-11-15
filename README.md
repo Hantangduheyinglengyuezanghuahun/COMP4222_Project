@@ -69,7 +69,7 @@ Repeat for Electronics.
 
 ## Running Models
 
-Popularity:
+KNN Baseline:
 python eval.py --category Video_Games
 
 PPR:

@@ -40,10 +40,15 @@ def main(args):
     train = df[df.split=='train']
     users = df[df.split=='test']['user_id'].unique()
 
+    '''
     # Popularity baseline
     from baselines.popularity import fit_popularity, recommend_popularity
     pop, seen = fit_popularity(train)
     rankings = recommend_popularity(pop, seen, users, K=args.k)
+    '''
+    from baselines.item_knn import fit_knn, recommend_knn
+    pop, seen = fit_knn(train)
+    rankings = recommend_knn(pop,seen,users,K=args.k)
 
     gt = build_ground_truth(df, 'test')
     overall = evaluate(rankings, gt, k_prec=args.kp, k_rec=args.kr, k_ndcg=args.kn)
