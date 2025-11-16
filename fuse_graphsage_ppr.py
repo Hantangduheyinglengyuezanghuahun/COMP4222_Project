@@ -63,7 +63,7 @@ def main():
     ap.add_argument("--kr", type=int, default=20)
     ap.add_argument("--kn", type=int, default=10)
     ap.add_argument("--filter-seen", action="store_true")
-    ap.add_argument("--gamma-step", type=float, default=0.1, help="Sweep γ in [0,1] with this step")
+    ap.add_argument("--gamma-step", type=float, default=0.2, help="Sweep γ in [0,1] with this step")
     ap.add_argument("--cpu", action="store_true")
     args = ap.parse_args()
 
@@ -232,15 +232,22 @@ def main():
             if args.ppr_scores.endswith(".npy"):
                 if ppr_dense is not None:
                     r = ppr_user_map.get(str(u))
-                    ppr_vec = np.zeros_like(gs)
                     if r is not None:
-                        row = ppr_dense[r]
-                        # copy all scores
-                        for j, s in enumerate(row):
+                        # Take stored row and optionally normalize it (same policy as sparse path)
+                        row_vals = ppr_dense[r].astype(np.float32, copy=False)
+                        row_vals = normalize_scores(row_vals, args.norm) if args.norm != "none" else row_vals
+                        # Per-user minimum (after normalization) used to pad all missing items
+                        vmin = float(row_vals.min()) if row_vals.size > 0 else 0.0
+                        ppr_vec = np.full_like(gs, fill_value=vmin, dtype=np.float32)
+                        # Copy mapped scores for stored items
+                        for j, s in enumerate(row_vals):
                             gi = col_remap[j]
                             if gi >= 0:
-                                ppr_vec[gi] = s
-                    fused = (1.0 - gamma) * gs + gamma * ppr_vec
+                                ppr_vec[gi] = float(s)
+                        fused = (1.0 - gamma) * gs + gamma * ppr_vec
+                    else:
+                        # No PPR row for this user
+                        fused = (1.0 - gamma) * gs
             else:
                 r = ppr_row_map.get(str(u))
                 fused = gs.copy()
@@ -255,7 +262,7 @@ def main():
                         mask = gidx >= 0
                         gidx = gidx[mask]; vals = vals[mask]
 
-                        # normalize only over non-zero entries (as before)
+                        # normalize only over stored entries (as before)
                         if args.norm != "none" and vals.size > 0:
                             vmin, vmax = vals.min(), vals.max()
                             if args.norm == "minmax" and vmax > vmin + 1e-12:
@@ -275,10 +282,8 @@ def main():
                         if gidx.size > 0:
                             ppr_vec[gidx] = vals
 
-                        # Fuse: when gamma=1 this equals PPR (with min-imputed missing)
                         fused = (1.0 - gamma) * gs + gamma * ppr_vec
                     else:
-                        # No PPR stored for this user; keep previous behavior
                         fused *= (1.0 - gamma)  # effectively γ*0
 
             if args.filter_seen:

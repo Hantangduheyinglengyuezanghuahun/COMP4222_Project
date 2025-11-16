@@ -6,6 +6,7 @@
 - ALS: run_als.py
 - GraphSAGE: run_graphsage.py
   - Uses either A (user–item bipartite) or A^2 + A (adds 2-hop user–user and item–item edges)
+- GraphSAGE + PPR fusion for inference: fuse_graphsage_ppr.py
 - Data are preprocessed once and reused from data/loaded_data
 
 ## Directory highlights
@@ -84,6 +85,9 @@ python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data
 GraphSAGE (enriched A^2 + A):
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --use-a2
 
+GraphSAGE + PPR fusion:
+python fuse_graphsage_ppr.py --category Video_Games --gs-ckpt <checkpoint.pt> --n2v-dim 128 --norm minmax --filter-seen --use-rating
+
 Change category to Electronics as needed.
 
 ## SLURM (Examples)
@@ -104,6 +108,8 @@ Each script:
 - A^2 + A currently adds user-user and item-item 2-hop similarity edges (co-interaction); no new cross-type edges are added.
 - If Parquet engines are missing, pd.py will fall back to CSV.
 - For large graphs consider increasing two-hop minimum count to reduce dense similarity edges.
+- PPR fusion now imputes missing PPR scores with the user’s min PPR, so γ=1 reproduces PPR.
+- To reduce memory during PPR generation, prefer --topk-scores 0 unless you specifically need the sparse .npz.
 
 ## Repro / Extensibility
 - Adjust hidden/out dimensions and training hyperparameters via run_graphsage.py arguments.
@@ -114,3 +120,31 @@ Each script:
 Missing Parquet engine: install pyarrow or fastparquet.
 OOM on GPUs: reduce batch size or number of negative samples.
 Poor metrics: try --use-a2 or tune learning rate / epochs.
+
+## PPR (run_ppr.py)
+- Builds a bipartite graph from train interactions and computes per-test-user PPR.
+- Memory-safe changes:
+  - Disabled periodic checkpointing and user/item vector saving.
+  - Writes a dense user–item score matrix to: checkpoints_ppr/ppr_scores_dense.npy
+  - Optionally also writes a sparse top-L matrix to: checkpoints_ppr/ppr_scores.npz plus meta pickle.
+- Tips to avoid OOM:
+  - Reduce --topk-scores or set --topk-scores 0 to skip building the extra sparse matrix in RAM.
+  - Use a smaller --k during evaluation if just testing the pipeline.
+
+Example:
+python run_ppr.py --category Video_Games --dense-path checkpoints_ppr/ppr_scores_dense.npy --topk-scores 0
+
+## GraphSAGE + PPR Fusion (fuse_graphsage_ppr.py)
+- Loads a trained GraphSAGE checkpoint and fuses it with precomputed PPR scores via:
+  score = (1 - γ) * GraphSAGE + γ * PPR
+- Missing PPR entries are imputed per-user with that user’s minimum stored PPR score. This guarantees γ=1 matches PPR ordering even when only top-L PPR entries were saved.
+- Supports PPR dense .npy (recommended) or sparse .npz + meta.pkl.
+
+Your last working command:
+python fuse_graphsage_ppr.py --category Video_Games --gs-ckpt checkpoints/Video_Games_graphsage_A_withRating_noTextUsers_noTextItems_n2v128_fusionOut1024_fusionHid1024_drop0p20_hidden128_out128_final_3999.pt --n2v-dim 128 --norm minmax --filter-seen --use-rating
+
+Notes:
+- Ensure the feature fusions (--use-rating, --use-comment-*) match training; otherwise dims may mismatch.
+- For PPR inputs:
+  - Dense: --ppr-scores checkpoints_ppr/ppr_scores_dense.npy and --ppr-meta checkpoints_ppr/ppr_scores.meta.pkl
+  - Sparse: --ppr-scores checkpoints_ppr/ppr_scores.npz and --ppr-meta checkpoints_ppr/ppr_scores.meta.pkl
