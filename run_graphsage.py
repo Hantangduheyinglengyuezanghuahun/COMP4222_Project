@@ -66,6 +66,7 @@ class SAGEEncoder(nn.Module):
         x = self.mlp(x)
         x = self.dropout(x)
         x = self.conv2(x, edge_index)
+        # x = F.normalize(x, p=2.0, dim=-1)
         return x
 
 class ItemRatingFusion(nn.Module):
@@ -262,7 +263,7 @@ def main(args):
         print("[COMMENT][ITEM] Requested but feature missing; skipped.")
 
     class LinkPredictor(nn.Module):
-        def __init__(self, hidden=64, out=64):
+        def __init__(self, hidden=64, out=64, dropout = args.dropout):
             super().__init__()
             self.user_id_emb = nn.Embedding(data['user'].num_nodes, hidden)
             self.item_id_emb = nn.Embedding(data['item'].num_nodes, hidden)
@@ -272,10 +273,10 @@ def main(args):
                 with torch.no_grad():
                     self.user_id_emb.weight.copy_(n2v_local['user_emb'].to(device=device, dtype=torch.float32))
                     self.item_id_emb.weight.copy_(n2v_local['item_emb'].to(device=device, dtype=torch.float32))
-            self.encoder = to_hetero(SAGEEncoder(hidden, out), data.metadata())
+            self.encoder = to_hetero(SAGEEncoder(hidden, out, dropout), data.metadata())
 
         def forward(self, data):
-            # data['item'].x already fused to 64-d above
+            # data['item'].x already fused to 64-d tabove
             return self.encoder(data.x_dict, data.edge_index_dict)
 
         def score(self, u_emb, i_emb):
@@ -292,8 +293,15 @@ def main(args):
         rate_use_tag = "withRating" if args.use_rating else "noRating"
         text_user_tag = "withTextUsers" if args.use_comment_user else "noTextUsers"
         text_item_tag = "withTextItems" if args.use_comment_item else "noTextItems"
+        dropout_tag = f"drop{args.dropout:.2f}".replace('.','p')
+        node2vec_tag = f"n2v{args.n2v_dim}"
+        fusion_tag = f"fusionOut{fusion_out}_fusionHid{(fusion_hid if fusion_hid is not None else 'auto')}" if (rating_fuse is not None or user_comment_fuse is not None or item_comment_fuse is not None) else "noFusion"
+        hidden_tag = f"hidden{args.hidden}"
+        out_tag = f"out{args.out}"
+        prefix_tags = [node2vec_tag, fusion_tag, dropout_tag, hidden_tag, out_tag]
+        prefix = "_".join(prefix_tags)     
         text_use_tag = f"{text_user_tag}_{text_item_tag}"
-        fname = f"{prefix}_graphsage_{use_a2_tag}_{rate_use_tag}_{text_use_tag}_{tag}.pt"
+        fname = f"{args.category}_graphsage_{use_a2_tag}_{rate_use_tag}_{text_use_tag}_{prefix}_{tag}.pt"
         path = os.path.join(args.checkpoint_dir, fname)
         torch.save({
             'epoch': epoch,
@@ -452,7 +460,7 @@ def main(args):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--category", default=None)
+    ap.add_argument("--category", default="Video_Games", help="Category to train on; default Video_Games.")
     ap.add_argument("--dataset-dir", default="data/loaded_data", help="Directory with preprocessed artifacts.")
     ap.add_argument("--use-a2", action="store_true", help="Load A^2 + A enriched graph.")
     ap.add_argument("--use-rating", action="store_true", help="Fuse item rating stats via MLP into item embeddings.")
