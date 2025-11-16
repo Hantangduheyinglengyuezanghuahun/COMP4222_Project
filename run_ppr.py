@@ -3,7 +3,6 @@ from pathlib import Path
 from eval import build_ground_truth, evaluate
 import os
 import pickle
-import time
 
 def index_encode(train):
     u_idx = pd.Index(train['user_id'].unique())
@@ -86,7 +85,6 @@ def main(args):
 
     rows, cols, vals = [], [], []  # still keep sparse incremental if you want
     users_row_sparse = []
-    last_save = time.time()
 
     for idx, u in enumerate(test_users):
         ui = umap.get(u)
@@ -125,41 +123,19 @@ def main(args):
         bar = '#' * filled + '-' * (bar_len - filled)
         print(f"\r[INFO] Progress |{bar}| {idx+1}/{total} ({progress:.1%})", end='')
 
-        if (idx+1) % args.save_every == 0 or (time.time() - last_save) > args.save_secs:
-            os.makedirs(args.checkpoint_dir, exist_ok=True)
-            # interim dense save
-            np.save(args.dense_path, dense_scores)
-            # interim sparse save (optional)
-            if len(users_row_sparse):
-                S = sp.csr_matrix((vals, (rows, cols)), shape=(len(users_row_sparse), I))
-                sp.save_npz(Path(args.scores_path), S)
-                with open(Path(args.meta_path), "wb") as f:
-                    pickle.dump({'users': users_row_sparse, 'items': list(i_idx), 'args': vars(args)}, f)
-            # save user/item vectors
-            np.save(args.user_vec_path, dense_scores[kept_mask])
-            # simple item vector: degree from train
-            item_degree = train.groupby('item_id').size().reindex(i_idx, fill_value=0).to_numpy(dtype=np.float32)
-            np.save(args.item_vec_path, item_degree)
-            last_save = time.time()
-            print(f"\n[CKPT] Interim dense scores saved to {args.dense_path}")
+        # Periodic checkpoint disabled to reduce memory usage.
 
     print()
     os.makedirs(args.checkpoint_dir, exist_ok=True)
-    # Final dense save
+    # Final dense save only (user/item vectors disabled)
     np.save(args.dense_path, dense_scores)
-    # Final sparse (optional)
     if len(users_row_sparse):
         S = sp.csr_matrix((vals, (rows, cols)), shape=(len(users_row_sparse), I))
         sp.save_npz(Path(args.scores_path), S)
         with open(Path(args.meta_path), "wb") as f:
             pickle.dump({'users': users_row_sparse, 'items': list(i_idx), 'args': vars(args)}, f)
-    # User/item vectors
-    np.save(args.user_vec_path, dense_scores[kept_mask])
-    item_degree = train.groupby('item_id').size().reindex(i_idx, fill_value=0).to_numpy(dtype=np.float32)
-    np.save(args.item_vec_path, item_degree)
     print(f"[CKPT] Dense PPR scores saved: {args.dense_path}")
-    print(f"[CKPT] User PPR vectors: {args.user_vec_path}")
-    print(f"[CKPT] Item degree vectors: {args.item_vec_path}")
+    # User PPR vectors and item degree vectors saving disabled.
 
     # Evaluation using dense (top-K)
     rankings = {}
@@ -190,13 +166,13 @@ if __name__ == "__main__":
     ap.add_argument("--checkpoint-dir", default="checkpoints_ppr")
     ap.add_argument("--scores-path", default="checkpoints_ppr/ppr_scores.npz")
     ap.add_argument("--meta-path", default="checkpoints_ppr/ppr_scores.meta.pkl")
-    ap.add_argument("--topk-scores", type=int, default=0, help="Store top-L item scores per user (0=all)")
+    ap.add_argument("--topk-scores", type=int, default=6000, help="Store top-L item scores per user (0=all)")
     ap.add_argument("--keep-seen", action="store_true", help="Do not filter seen items from scores")
     ap.add_argument("--eval-only", action="store_true", help="Evaluate using an existing scores/meta and exit.")
     ap.add_argument("--save-every", type=int, default=200000000)
     ap.add_argument("--save-secs", type=int, default=120000000)   
     ap.add_argument("--dense-path", default="checkpoints_ppr/ppr_scores_dense.npy", help="Dense user-item score matrix (test_users x items)")
-    ap.add_argument("--user-vec-path", default="checkpoints_ppr/ppr_user_vectors.npy", help="Saved user PPR vectors (rows kept users)")
-    ap.add_argument("--item-vec-path", default="checkpoints_ppr/ppr_item_vectors.npy", help="Saved item vectors (e.g., degree)")
+    # ap.add_argument("--user-vec-path", default="checkpoints_ppr/ppr_user_vectors.npy", help="Saved user PPR vectors (rows kept users)")
+    # ap.add_argument("--item-vec-path", default="checkpoints_ppr/ppr_item_vectors.npy", help="Saved item vectors (e.g., degree)")
     args = ap.parse_args()
     main(args)

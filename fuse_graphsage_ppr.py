@@ -47,7 +47,7 @@ def main():
     ap.add_argument("--use-a2", action="store_true")
     ap.add_argument("--gs-ckpt", required=True, help="GraphSAGE checkpoint (.pt)")
     # PPR SCORE CHECKPOINTS (scores only)
-    ap.add_argument("--ppr-scores", default = "checkpoints_ppr/ppr_scores.npz", help="PPR user-item score matrix (.npz, CSR)")
+    ap.add_argument("--ppr-scores", default = "checkpoints_ppr/ppr_scores_dense.npy", help="PPR user-item score matrix (.npz, CSR)")
     ap.add_argument("--ppr-meta", default = "checkpoints_ppr/ppr_scores.meta.pkl", help="Meta pickle with {'users': [...], 'items': [...]} aligned to PPR scores")
     # Rebuild features as in training
     ap.add_argument("--n2v-dim", type=int, default=128, help="Node2Vec dim (default from ckpt args if present)")
@@ -63,7 +63,7 @@ def main():
     ap.add_argument("--kr", type=int, default=20)
     ap.add_argument("--kn", type=int, default=10)
     ap.add_argument("--filter-seen", action="store_true")
-    ap.add_argument("--gamma-step", type=float, default=0.5, help="Sweep γ in [0,1] with this step")
+    ap.add_argument("--gamma-step", type=float, default=0.1, help="Sweep γ in [0,1] with this step")
     ap.add_argument("--cpu", action="store_true")
     args = ap.parse_args()
 
@@ -104,6 +104,8 @@ def main():
     ck = torch.load(args.gs_ckpt, map_location=device)
     ck_args = ck.get('args', {})
     hidden = ck_args.get('hidden', 128); outdim = ck_args.get('out', 64); dropout = ck_args.get('dropout', 0.2)
+    print("[DEBUG]: The hidden dim is:", hidden)
+    print("[DEBUG]: The out dim is:", outdim)
     n2v_dim = args.n2v_dim if args.n2v_dim is not None else ck_args.get('n2v_dim', hidden)
     n2v = load_node2vec(args.dataset_dir, prefix, n2v_dim)
     if n2v is None: raise FileNotFoundError(f"Node2Vec ({n2v_dim}) not found.")
@@ -247,20 +249,36 @@ def main():
                     if row.nnz > 0:
                         idx = row.indices
                         vals = row.data.astype(np.float32)
+
                         # remap indices to global item index space
                         gidx = col_remap[idx]
                         mask = gidx >= 0
                         gidx = gidx[mask]; vals = vals[mask]
-                        if args.norm != "none":
-                            # normalize only over non-zero entries
+
+                        # normalize only over non-zero entries (as before)
+                        if args.norm != "none" and vals.size > 0:
                             vmin, vmax = vals.min(), vals.max()
                             if args.norm == "minmax" and vmax > vmin + 1e-12:
                                 vals = (vals - vmin) / (vmax - vmin)
+                                vmin = vals.min()  # update post-normalization
                             elif args.norm == "z":
                                 m, s = vals.mean(), vals.std()
                                 vals = (vals - m) / (s + 1e-12)
-                        fused[gidx] = (1.0 - gamma) * fused[gidx] + gamma * vals
+                                vmin = vals.min()
+                            else:
+                                vmin = vals.min()
+                        else:
+                            vmin = vals.min() if vals.size > 0 else 0.0
+
+                        # Impute missing PPR entries with the user's min PPR score
+                        ppr_vec = np.full_like(gs, fill_value=vmin, dtype=np.float32)
+                        if gidx.size > 0:
+                            ppr_vec[gidx] = vals
+
+                        # Fuse: when gamma=1 this equals PPR (with min-imputed missing)
+                        fused = (1.0 - gamma) * gs + gamma * ppr_vec
                     else:
+                        # No PPR stored for this user; keep previous behavior
                         fused *= (1.0 - gamma)  # effectively γ*0
 
             if args.filter_seen:
