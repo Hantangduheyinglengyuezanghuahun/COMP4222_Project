@@ -27,3 +27,50 @@ python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 1000 --lr 5e-4 --hidden 128 --out 64
 ## (1.12) use both user and item comment with 1000 epochs (ZHANG Xingjian)
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 1000 --lr 1e-4  --use-rating --use-comment-item --use-comment-user --batch 512 --hidden 256 --out 256 --fusion-out 256 --fusion-hid 256
+
+# Ablation Study
+## Run the pipeline and evaluate every 10 epochs. (Codes need to be changed slightly)
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --eval-during-training --eval-every 10
+
+# Try different hidden and out
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 128
+
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 64
+
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 128
+
+# Try different dropout from [0.1, 0.2, 0.3, 0.4, 0.5]
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 64 --dropout <your_drop_out_rate>
+
+# Try different dimensions of node2vec embedding
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 64 --n2v-dim 64
+(The default is 128, run dataset/precompute_node2vec.py first)
+
+# Try different numbers of negs, save evaluate every 10 epoch
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --negs 1 --eval-during-training --eval-every 10
+
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --negs 10 --eval-during-training --eval-every 10
+
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --negs 10 --eval-during-training --eval-every 10
+
+# Try different alpha and iters for ppr
+python run_ppr_sparse.py --alpha <your-alpha> --iters <your-iter>
+
+for alpha in [0.1, 0.15, 0.2, 0.5, 0.8] and iter in [40, 50]. Change one variable at once, with the other one using default. 7 experiments in total. 
+
+Results:
+
+|  \alpha |  0.1  |  0.15  |  0.2  |  0.5  |  0.8  |
+| --------| ----- |  ----- |------ | ----- | ----- |
+|P@10||||||
+|R@20||||||
+|ndcg@20||||||
+
+|  iter|  40  |  50 |
+| --------| ----- |  ----- |
+|P@10||
+|R@20||
+|ndcg@20||
+
+
+

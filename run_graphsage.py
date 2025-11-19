@@ -6,6 +6,7 @@ from eval import build_ground_truth, evaluate
 import os
 import torch.nn.functional as F
 import datetime
+import matplotlib.pyplot as plt   # <-- added
 
 def load_preprocessed(dataset_dir, category=None, use_a2=False):
     prefix = (category if category else "all")
@@ -139,6 +140,12 @@ def main(args):
     train = df[df.split=='train'][['user_id','item_id']]
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     data = data.to(device)
+    # PREPARE periodic eval resources early
+    test_users = df[df.split=='test']['user_id'].unique()
+    seen_cache = train.groupby('user_id')['item_id'].apply(set).to_dict()
+
+    # Tracking lists for metric curve
+    eval_epochs, eval_p10, eval_r20, eval_ndcg10 = [], [], [], []
 
     # Load Node2Vec features with decoupled dim
     n2v = load_node2vec(args.dataset_dir, (args.category if args.category else "all"), args.n2v_dim)
@@ -346,6 +353,41 @@ def main(args):
         }, path)
         print(f"[CKPT] Saved: {path}")
 
+    # Periodic evaluation helper (inside main; no other functions touched)
+    def _periodic_eval(epoch_tag):
+        model.eval()
+        with torch.no_grad():
+            out_tmp = model(data)
+            Ue, Ie = out_tmp['user'], out_tmp['item']
+        item_emb = Ie / (Ie.norm(dim=1, keepdim=True)+1e-12)
+        rankings = {}
+        for u in test_users:
+            uid = umap.get(u)
+            if uid is None:
+                continue
+            ue = Ue[uid:uid+1]
+            ue = ue / (ue.norm(dim=1, keepdim=True)+1e-12)
+            scores = (ue @ item_emb.T).squeeze(0)
+            ban = seen_cache.get(u, set())
+            if ban:
+                ban_idx = [imap[i] for i in ban if i in imap]
+                if ban_idx:
+                    scores[torch.tensor(ban_idx, device=scores.device)] = -1e9
+            topk = torch.topk(scores, k=args.k).indices.tolist()
+            rankings[u] = [i_idx[i] for i in topk]
+        gt_local = build_ground_truth(df, phase='test')
+        rep_local = evaluate(rankings, gt_local, k_prec=args.kp, k_rec=args.kr, k_ndcg=args.kn)
+        print(f"== Periodic Eval (epoch {epoch_tag}) =="); print(rep_local)
+        # Record metrics
+        try:
+            eval_epochs.append(epoch_tag)
+            eval_p10.append(float(rep_local.loc['mean', 'P@10']))
+            eval_r20.append(float(rep_local.loc['mean', 'R@20']))
+            eval_ndcg10.append(float(rep_local.loc['mean', 'NDCG@10']))
+        except Exception as e:
+            print(f"[METRIC][WARN] Failed to record metrics: {e}")
+        model.train()
+
     start_epoch = 0
     if args.resume_checkpoint:
         ck = torch.load(args.resume_checkpoint, map_location=device)
@@ -434,6 +476,8 @@ def main(args):
                 print(f"epoch {epoch+1} loss {total:.3f}")
             if (epoch+1) % args.save_every == 0:
                 save_ckpt(epoch)
+            if args.eval_during_training and (epoch+1) % args.eval_every == 0:
+                _periodic_eval(epoch+1)
         save_ckpt(args.epochs-1, final=True)
     else:
         print("[INFO] --eval-only set; skipping training.")
@@ -475,6 +519,39 @@ def main(args):
     rep = evaluate(rankings, gt, k_prec=args.kp, k_rec=args.kr, k_ndcg=args.kn)
     print("== GraphSAGE (mean/std) =="); print(rep)
 
+    # Record final epoch metrics (ensure included)
+    try:
+        final_epoch_tag = args.epochs
+        if final_epoch_tag not in eval_epochs:
+            eval_epochs.append(final_epoch_tag)
+            eval_p10.append(float(rep.loc['mean', 'P@10']))
+            eval_r20.append(float(rep.loc['mean', 'R@20']))
+            eval_ndcg10.append(float(rep.loc['mean', 'NDCG@10']))
+    except Exception as e:
+        print(f"[METRIC][WARN] Failed to record final metrics: {e}")
+
+    # Plot and save if we have any points
+    if eval_epochs and args.metrics_plot:
+        try:
+            plt.figure(figsize=(7,4))
+            plt.plot(eval_epochs, eval_p10, label='P@10', marker='o')
+            plt.plot(eval_epochs, eval_r20, label='R@20', marker='s')
+            plt.plot(eval_epochs, eval_ndcg10, label='NDCG@10', marker='^')
+            plt.xlabel('Epoch')
+            plt.ylabel('Metric')
+            plt.title('Evaluation Metrics vs Epoch')
+            plt.grid(alpha=0.3)
+            plt.legend()
+            plt.tight_layout()
+            os.makedirs(os.path.dirname(args.metrics_plot), exist_ok=True) if os.path.dirname(args.metrics_plot) else None
+            plt.savefig(args.metrics_plot, dpi=150)
+            plt.close()
+            print(f"[METRIC] Saved plot: {args.metrics_plot}")
+        except Exception as e:
+            print(f"[METRIC][WARN] Failed to save plot: {e}")
+    else:
+        print("[METRIC] No periodic evaluation points to plot.")
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(conflict_handler="resolve")
     ap.add_argument("--category", default="Video_Games", help="Category to train on; default Video_Games.")
@@ -509,6 +586,13 @@ if __name__ == "__main__":
     ap.add_argument("--fusion-out", type=int, default=1024, help="Output dim of rating/comment fusion MLPs (default: keep input dim).")
     ap.add_argument("--fusion-hid", type=int, default=1024, help="Hidden dim of fusion MLPs. Default: base_dim+extra_dim.")
     ap.add_argument("--expand-hidden", action="store_true", help="If set, bump --hidden up to fusion-out to avoid early compression.")
+    # NEW periodic evaluation arguments
+    ap.add_argument("--eval-during-training", action="store_true",
+                    help="Enable periodic evaluation during training.")
+    ap.add_argument("--eval-every", type=int, default=5,
+                    help="Evaluate every T epochs when --eval-during-training is set.")
+    ap.add_argument("--metrics-plot", default="metric_curve.png",
+                    help="Path to save metrics vs epoch plot (PNG).")
     args = ap.parse_args()
     print("The args:", args)    
     main(args)

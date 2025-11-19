@@ -47,8 +47,8 @@ def main():
     ap.add_argument("--use-a2", action="store_true")
     ap.add_argument("--gs-ckpt", required=True, help="GraphSAGE checkpoint (.pt)")
     # PPR SCORE CHECKPOINTS (scores only)
-    ap.add_argument("--ppr-scores", default = "checkpoints_ppr/ppr_scores_dense.npy", help="PPR user-item score matrix (.npz, CSR)")
-    ap.add_argument("--ppr-meta", default = "checkpoints_ppr/ppr_scores.meta.pkl", help="Meta pickle with {'users': [...], 'items': [...]} aligned to PPR scores")
+    ap.add_argument("--ppr-scores", default = "checkpoints_Video_Games_ppr/ppr_scores_0.npz", help="PPR user-item score matrix (.npz, CSR)")
+    ap.add_argument("--ppr-meta", default = "checkpoints_Video_Games_ppr/ppr_scores.meta_0.pkl", help="Meta pickle with {'users': [...], 'items': [...]} aligned to PPR scores")
     # Rebuild features as in training
     ap.add_argument("--n2v-dim", type=int, default=128, help="Node2Vec dim (default from ckpt args if present)")
     ap.add_argument("--use-rating", action="store_true")
@@ -300,11 +300,16 @@ def main():
 
         rep = evaluate(rankings, gt, k_prec=args.kp, k_rec=args.kr, k_ndcg=args.kn)
         results.append((gamma, rep))
+        print(f"\n[RESULT] Gamma {gamma:.2f} | " +
+              f"P@{args.kp}={rep.loc['mean'][f'P@{args.kp}']:.4f} " +
+              f"R@{args.kr}={rep.loc['mean'][f'R@{args.kr}']:.4f} " +
+              f"NDCG@{args.kn}={rep.loc['mean'][f'NDCG@{args.kn}']:.4f}")
 
     rows = []
     for gamma, rep in results:
         m = rep.loc['mean'].to_dict()
         rows.append((gamma, m[f'P@{args.kp}'], m[f'R@{args.kr}'], m[f'NDCG@{args.kn}']))
+        # print(rows)
     out_df = pd.DataFrame(rows, columns=['gamma', f'P@{args.kp}', f'R@{args.kr}', f'NDCG@{args.kn}'])
     print(out_df.to_string(index=False))
     best_row = out_df.sort_values(by=f'NDCG@{args.kn}', ascending=False).iloc[0]

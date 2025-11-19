@@ -39,12 +39,15 @@ def ppr_single(P_T, u_global, alpha=0.15, iters=30, tol=1e-6):
     return y
 
 def main(args):
+    
     df = pd.read_csv(Path(args.input))
+    print("[INFO] Loaded interaction data:", df.shape)
     if args.category:
         df = df[df['category'].str.lower()==args.category.lower()]
     train = df[df.split=='train'][['user_id','item_id']]
     test_users = df[df.split=='test']['user_id'].unique()
     u_idx, i_idx, umap, imap = index_encode(train)
+    print(f"[INFO] Dataset after filtering: {len(u_idx)} users, {len(i_idx)} items, {len(train)} interactions")
 
     # Early evaluation-only branch: load scores and evaluate
     if args.eval_only:
@@ -74,26 +77,29 @@ def main(args):
         print("[EVAL-ONLY] Loaded PPR scores and evaluated.")
         print("== PPR (mean/std) =="); print(rep)
         return
-
+    
+    print("[INFO] Building bipartite graph P...")
     P = build_bipartite(train, umap, imap)
+    print("[INFO] Built transition matrix P.")
     P_T = P.T.tocsr()
+    print("[INFO] Transposed P to P_T.")
     U, I = len(u_idx), len(i_idx)
+    print(f"[INFO] Graph has {U} users and {I} items.")
+    # Build seen dict for filtering
     seen = train.groupby('user_id')['item_id'].apply(set).to_dict()
+    print(f"[INFO] Built bipartite graph P with shape {P.shape}")
 
-    # DENSE full matrix (users x items)
-    dense_scores = np.zeros((len(test_users), I), dtype=np.float32)
-    kept_mask = np.zeros((len(test_users),), dtype=bool)  # mark users actually computed (in umap)
-
-    rows, cols, vals = [], [], []  # still keep sparse incremental if you want
+    # SPARSE top-L per user only (no dense allocation)
+    rows, cols, vals = [], [], []
     users_row_sparse = []
     last_save = time.time()
-
+    print(f"[INFO] Starting PPR computation for {len(test_users)} test users (sparse only)...")
     for idx, u in enumerate(test_users):
         ui = umap.get(u)
         if ui is None:
             continue
         pr_full = ppr_single(P_T, ui, alpha=args.alpha, iters=args.iters, tol=args.tol)
-        item_scores = pr_full[U:U+I]  # slice for items only
+        item_scores = pr_full[U:U+I]  # items slice
 
         # filter seen if requested
         if not args.keep_seen:
@@ -104,20 +110,19 @@ def main(args):
                     if bi is not None:
                         item_scores[bi] = 0.0
 
-        dense_scores[idx] = item_scores
-        kept_mask[idx] = True
-
-        # Optional sparse top-L (keep existing behavior)
+        # keep only top-L per user
         L = args.topk_scores if args.topk_scores > 0 else I
+        L = min(max(1, L), I)
         cand_idx = np.argpartition(-item_scores, L - 1)[:L]
-        pairs = [(i, float(item_scores[i])) for i in cand_idx]
-        if pairs:
-            users_row_sparse.append(u)
+        if cand_idx.size:
+            users_row_sparse.append(str(u))  # store user ids as str for downstream compatibility
             r = len(users_row_sparse) - 1
-            for i, s in pairs:
-                rows.append(r); cols.append(i); vals.append(s)
+            cand_vals = item_scores[cand_idx].astype(np.float32, copy=False)
+            rows.extend([r] * cand_idx.size)
+            cols.extend(cand_idx.tolist())
+            vals.extend(cand_vals.tolist())
 
-        # progress bar (unchanged)
+        # progress bar
         total = len(test_users)
         progress = (idx+1)/total
         bar_len = 40
@@ -125,54 +130,39 @@ def main(args):
         bar = '#' * filled + '-' * (bar_len - filled)
         print(f"\r[INFO] Progress |{bar}| {idx+1}/{total} ({progress:.1%})", end='')
 
+        # periodic sparse checkpoint
         if (idx+1) % args.save_every == 0 or (time.time() - last_save) > args.save_secs:
             os.makedirs(args.checkpoint_dir, exist_ok=True)
-            # interim dense save
-            np.save(args.dense_path, dense_scores)
-            # interim sparse save (optional)
-            if len(users_row_sparse):
-                S = sp.csr_matrix((vals, (rows, cols)), shape=(len(users_row_sparse), I))
-                sp.save_npz(Path(args.scores_path), S)
-                with open(Path(args.meta_path), "wb") as f:
-                    pickle.dump({'users': users_row_sparse, 'items': list(i_idx), 'args': vars(args)}, f)
-            # save user/item vectors
-            np.save(args.user_vec_path, dense_scores[kept_mask])
-            # simple item vector: degree from train
-            item_degree = train.groupby('item_id').size().reindex(i_idx, fill_value=0).to_numpy(dtype=np.float32)
-            np.save(args.item_vec_path, item_degree)
+            S_ckpt = sp.csr_matrix((vals, (rows, cols)), shape=(len(users_row_sparse), I))
+            sp.save_npz(Path(args.scores_path), S_ckpt)
+            with open(Path(args.meta_path), "wb") as f:
+                pickle.dump({'users': users_row_sparse, 'items': [str(x) for x in i_idx], 'args': vars(args)}, f)
             last_save = time.time()
-            print(f"\n[CKPT] Interim dense scores saved to {args.dense_path}")
+            print(f"\n[CKPT] Interim sparse scores saved to {args.scores_path}")
 
     print()
     os.makedirs(args.checkpoint_dir, exist_ok=True)
-    # Final dense save
-    np.save(args.dense_path, dense_scores)
-    # Final sparse (optional)
-    if len(users_row_sparse):
-        S = sp.csr_matrix((vals, (rows, cols)), shape=(len(users_row_sparse), I))
-        sp.save_npz(Path(args.scores_path), S)
-        with open(Path(args.meta_path), "wb") as f:
-            pickle.dump({'users': users_row_sparse, 'items': list(i_idx), 'args': vars(args)}, f)
-    # User/item vectors
-    np.save(args.user_vec_path, dense_scores[kept_mask])
-    item_degree = train.groupby('item_id').size().reindex(i_idx, fill_value=0).to_numpy(dtype=np.float32)
-    np.save(args.item_vec_path, item_degree)
-    print(f"[CKPT] Dense PPR scores saved: {args.dense_path}")
-    print(f"[CKPT] User PPR vectors: {args.user_vec_path}")
-    print(f"[CKPT] Item degree vectors: {args.item_vec_path}")
+    # Final sparse save
+    S = sp.csr_matrix((vals, (rows, cols)), shape=(len(users_row_sparse), I))
+    sp.save_npz(Path(args.scores_path), S)
+    with open(Path(args.meta_path), "wb") as f:
+        pickle.dump({'users': users_row_sparse, 'items': [str(x) for x in i_idx], 'args': vars(args)}, f)
+    print(f"[CKPT] Sparse PPR scores saved: {args.scores_path}")
+    print(f"[CKPT] Meta saved: {args.meta_path}")
 
-    # Evaluation using dense (top-K)
+    # Evaluation using saved sparse (top-K)
     rankings = {}
-    for idx, u in enumerate(test_users):
-        if not kept_mask[idx]:
-            continue
-        row = dense_scores[idx]
-        topk = np.argpartition(-row, args.k)[:args.k]
-        topk = topk[np.argsort(-row[topk])]
-        rankings[u] = [i_idx[i] for i in topk]
+    item_col_idx = pd.Index(i_idx)
+    for r, u in enumerate(users_row_sparse):
+        row = S.getrow(r)
+        if row.nnz == 0: continue
+        c = row.indices; v = row.data
+        order = np.argsort(-v)[:args.k]
+        topc = c[order]
+        rankings[u] = [item_col_idx[i] for i in topc]
     gt = build_ground_truth(df, phase='test')
     rep = evaluate(rankings, gt, k_prec=args.kp, k_rec=args.kr, k_ndcg=args.kn)
-    print("== Dense PPR (mean/std) ==")
+    print("== Sparse PPR (mean/std) ==")
     print(rep)
 
 if __name__ == "__main__":
@@ -195,7 +185,7 @@ if __name__ == "__main__":
     ap.add_argument("--eval-only", action="store_true", help="Evaluate using an existing scores/meta and exit.")
     ap.add_argument("--save-every", type=int, default=200000000)
     ap.add_argument("--save-secs", type=int, default=120000000)   
-    ap.add_argument("--dense-path", default="checkpoints_ppr/ppr_scores_dense.npy", help="Dense user-item score matrix (test_users x items)")
+    ap.add_argument("--dense-path", default="checkpoints_ppr", help="Dense user-item score matrix (test_users x items)")
     ap.add_argument("--user-vec-path", default="checkpoints_ppr/ppr_user_vectors.npy", help="Saved user PPR vectors (rows kept users)")
     ap.add_argument("--item-vec-path", default="checkpoints_ppr/ppr_item_vectors.npy", help="Saved item vectors (e.g., degree)")
     args = ap.parse_args()

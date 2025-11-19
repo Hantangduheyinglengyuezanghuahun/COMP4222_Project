@@ -1,7 +1,7 @@
 # Hyperparameter: epochs, dim
 import os, argparse, torch
 from torch_geometric.nn.models import Node2Vec
-
+from tqdm import tqdm
 def to_homogeneous(edge_index_ui, num_users, num_items):
     # user (0..U-1), item (U..U+I-1)
     src_u = edge_index_ui[0]
@@ -28,14 +28,17 @@ def main():
     U = data["user"].num_nodes
     I = data["item"].num_nodes
     ei_ui = data["user","interacts","item"].edge_index.cpu()
+    print(f"Loaded data with {U} users, {I} items, {ei_ui.size(1)} interactions")
 
     edge_index_h, N = to_homogeneous(ei_ui, U, I)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Training Node2Vec on {args.category} with {U} users and {I} items ({N} total nodes) on {device}")
     n2v = Node2Vec(
         edge_index_h, embedding_dim=args.dim, walk_length=args.walk_length,
         context_size=args.context_size, walks_per_node=args.walks_per_node,
         p=1.0, q=1.0, num_nodes=N, sparse=True
     ).to(device)
+    print("[DEBUG] Node2Vec model:", n2v)
 
     loader = n2v.loader(batch_size=128, shuffle=True, num_workers=0)
     opt = torch.optim.SparseAdam(list(n2v.parameters()), lr=args.lr)
@@ -43,9 +46,10 @@ def main():
     n2v.train()
     for epoch in range(1, args.epochs + 1):
         total = 0.0
-        for pos_rw, neg_rw in loader:
+        for pos_rw, neg_rw in tqdm(loader):
             opt.zero_grad()
             loss = n2v.loss(pos_rw.to(device), neg_rw.to(device))
+            
             loss.backward()
             opt.step()
             total += float(loss)

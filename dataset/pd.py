@@ -195,7 +195,7 @@ def _save_frame(df, out_dir, prefix):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dataset", choices=["video_games","electronics","all"], default="video_games")
+    ap.add_argument("--dataset", choices=["video_games","electronics","books", "all"], default="video_games")
     ap.add_argument("--category", default=None)
     ap.add_argument("--output-dir", default="data/loaded_data")
     ap.add_argument("--two-hop-min-count", type=int, default=1)
@@ -203,12 +203,15 @@ def main():
     ap.add_argument("--two-hop-relations", choices=["both","ii","uu"], default="ii",
                     help="Which k-hop relations to include")
     ap.add_argument("--hop-order", type=int, choices=[2,4], default=2, help="Use 2-hop (A^2) or 4-hop (A^4)")
+    ap.add_argument("--disable-two-hop", action="store_true",
+                    help="If set, do not compute 2-hop edges; A2_plus_A will be identical to A.")
     args = ap.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
 
     def process_one(tag, filename):
         path = f"data/{filename}"
+        print(path)
         if not os.path.exists(path):
             raise FileNotFoundError(path)
         df = pd.read_csv(path)
@@ -218,21 +221,24 @@ def main():
 
         df_path = _save_frame(df, args.output_dir, prefix)
 
-        train_df = df[df.split == 'train'][['user_id','item_id']]
+        train_df = df[df['split'] == 'train'][['user_id','item_id']]
 
         add_uu = args.two_hop_relations in ("both","uu")
         add_ii = args.two_hop_relations in ("both","ii")
 
         base_graph, u_idx, i_idx, umap, imap = build_hetero(train_df, add_two_hop=False)
-        enriched_graph, _, _, _, _ = build_hetero(
-            train_df,
-            add_two_hop=True,
-            two_hop_min_count=args.two_hop_min_count,
-            two_hop_topk=args.two_hop_topk,
-            add_uu=add_uu,
-            add_ii=add_ii,
-            hop_order=args.hop_order
-        )
+        if args.disable_two_hop:
+            enriched_graph = base_graph  # skip heavy 2-hop build
+        else:
+            enriched_graph, _, _, _, _ = build_hetero(
+                train_df,
+                add_two_hop=True,
+                two_hop_min_count=args.two_hop_min_count,
+                two_hop_topk=args.two_hop_topk,
+                add_uu=add_uu,
+                add_ii=add_ii,
+                hop_order=args.hop_order
+            )
 
         meta = {
             "prefix": prefix,
@@ -242,9 +248,11 @@ def main():
         }
 
         base_path = os.path.join(args.output_dir, f"{prefix}_graphsage_A.pt")
+        print("[DEBUG] Saving base graph to: ", base_path)
         torch.save({"data": base_graph, "u_idx": list(u_idx), "i_idx": list(i_idx),
                     "umap": umap, "imap": imap}, base_path)
         meta["paths"]["A"] = base_path
+
 
         a2_path = os.path.join(args.output_dir, f"{prefix}_graphsage_A2_plus_A.pt")
         torch.save({"data": enriched_graph, "u_idx": list(u_idx), "i_idx": list(i_idx),
@@ -264,7 +272,10 @@ def main():
         process_one("Video_Games", "interactions.Video_Games.split.csv")
         process_one("Electronics", "interactions.Electronics.split.csv")
     elif args.dataset == "video_games":
+        print("[DEBUG]: args.dataset is: ", args.dataset)
         process_one("Video_Games", "interactions.Video_Games.split.csv")
+    elif args.dataset == "books":
+        process_one("Books", "interactions.Books.split.csv")
     else:
         process_one("Electronics", "interactions.Electronics.split.csv")
 
