@@ -1,6 +1,9 @@
 # Graphsage
 ## (1.1) Base (No rating, no a2 hop, no comment embedding, n2v 128)
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 64
+          P@10      R@20   NDCG@10
+mean  0.007351  0.073510  0.024458
+std   0.026097  0.260974  0.122620
 ## (1.2) Use a2-hop
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --use-a2
 ## (1.3) use 64 out dim for n2v
