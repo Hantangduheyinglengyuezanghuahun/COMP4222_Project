@@ -22,11 +22,12 @@ def evaluate(rankings, ground_truth, k_prec=10, k_rec=20, k_ndcg=10):
     for u, pred in rankings.items():
         truth = ground_truth.get(u, set())
         if not truth: continue
-        hitk = len(set(pred[:k_rec]) & truth)
+        hitr = len(set(pred[:k_rec]) & truth)
+        hitp = len(set(pred[:k_prec]) & truth)
         rows.append((
             u,
-            hitk/ k_prec,
-            hitk/ len(truth),
+            hitp/ k_prec,
+            hitr/ len(truth),
             ndcg_at_k(pred, truth, k_ndcg)
         ))
     df = pd.DataFrame(rows, columns=['user_id',f'P@{k_prec}',f'R@{k_rec}',f'NDCG@{k_ndcg}'])

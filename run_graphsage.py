@@ -298,11 +298,18 @@ def main(args):
         fusion_tag = f"fusionOut{fusion_out}_fusionHid{(fusion_hid if fusion_hid is not None else 'auto')}" if (rating_fuse is not None or user_comment_fuse is not None or item_comment_fuse is not None) else "noFusion"
         hidden_tag = f"hidden{args.hidden}"
         out_tag = f"out{args.out}"
+        neg_tag = f"negs{args.negs}"
         prefix_tags = [node2vec_tag, fusion_tag, dropout_tag, hidden_tag, out_tag]
         prefix = "_".join(prefix_tags)     
         text_use_tag = f"{text_user_tag}_{text_item_tag}"
-        fname = f"{args.category}_graphsage_{use_a2_tag}_{rate_use_tag}_{text_use_tag}_{prefix}_{tag}.pt"
+        fname = f"{args.category}_graphsage_{use_a2_tag}_{rate_use_tag}_{text_use_tag}_{prefix}_{neg_tag}_{tag}.pt"
         path = os.path.join(args.checkpoint_dir, fname)
+
+        # Safe locals (always defined), even if comment fusion was not used
+        base_item_dim_for_comment = int(data['item'].x.size(1))  # current item feature dim (post-rating if applied)
+        item_comment_dim = int(item_comment_feat.size(1)) if item_comment_feat is not None else 0
+        item_comment_enabled = bool(args.use_comment_item and (item_comment_feat is not None))
+
         torch.save({
             'epoch': epoch,
             'model_state': model.state_dict(),
@@ -321,19 +328,19 @@ def main(args):
             'user_comment_fuse_state': (user_comment_fuse.state_dict() if (user_comment_fuse is not None) else None),
             'user_comment_meta': {
                 'enabled': bool(args.use_comment_user and (user_comment_feat is not None)),
-                'base_dim': int(user_x.size(1)),
+                'base_dim': int(data['user'].x.size(1)),
                 'comment_dim': (int(user_comment_feat.size(1)) if user_comment_feat is not None else 0),
                 'out_dim': int(fusion_out),
-                'hid_dim': (fusion_hid if fusion_hid is not None else int(user_x.size(1) + (user_comment_feat.size(1) if user_comment_feat is not None else 0)))
+                'hid_dim': (fusion_hid if fusion_hid is not None else int(data['user'].x.size(1) + (user_comment_feat.size(1) if user_comment_feat is not None else 0)))
             },
             # item comment fusion
             'item_comment_fuse_state': (item_comment_fuse.state_dict() if (item_comment_fuse is not None) else None),
             'item_comment_meta': {
-                'enabled': bool(args.use_comment_item and (item_comment_feat is not None)),
-                'base_dim': int(item_x.size(1)),
-                'comment_dim': (int(item_comment_feat.size(1)) if item_comment_feat is not None else 0),
+                'enabled': item_comment_enabled,
+                'base_dim': base_item_dim_for_comment,
+                'comment_dim': item_comment_dim,
                 'out_dim': int(fusion_out),
-                'hid_dim': (fusion_hid if fusion_hid is not None else int(item_x.size(1) + (item_comment_feat.size(1) if item_comment_feat is not None else 0)))
+                'hid_dim': (fusion_hid if fusion_hid is not None else int(base_item_dim_for_comment + item_comment_dim))
             },
             'timestamp': datetime.datetime.utcnow().isoformat()
         }, path)
@@ -372,15 +379,25 @@ def main(args):
         # Restore item comment fusion
         ic_state = ck.get('item_comment_fuse_state'); ic_meta = ck.get('item_comment_meta', {}) or {}
         if args.use_comment_item and ic_state is not None and ic_meta.get('enabled', False) and item_comment_feat is not None:
+            # Prefer current post-rating base dim; fall back to state-dict inference
+            current_base = int(data['item'].x.size(1))
+            current_cdim = int(item_comment_feat.size(1))
+            expected_in = ic_state['net.0.weight'].shape[1] if 'net.0.weight' in ic_state else (ic_meta.get('base_dim', current_base) + ic_meta.get('comment_dim', current_cdim))
+            base_dim = current_base
+            comment_dim = current_cdim
+            if base_dim + comment_dim != expected_in:
+                print(f"[CKPT][WARN] ItemCommentFusion in_features mismatch (have {base_dim+comment_dim}, ckpt {expected_in}); overriding base_dim to match ckpt.")
+                base_dim = expected_in - comment_dim
+
             item_comment_fuse = ItemCommentFusion(
-                base_dim=ic_meta.get('base_dim', data['item'].x.size(1)),
-                comment_dim=ic_meta.get('comment_dim', item_comment_feat.size(1)),
+                base_dim=base_dim,
+                comment_dim=comment_dim,
                 out_dim=ic_meta.get('out_dim', fusion_out),
                 hid_dim=ic_meta.get('hid_dim', fusion_hid)
             ).to(device)
             item_comment_fuse.load_state_dict(ic_state)
             with torch.no_grad():
-                data['item'].x = item_comment_fuse(item_x.to(device), item_comment_feat)
+                data['item'].x = item_comment_fuse(data['item'].x, item_comment_feat)  # FIX: use fused item features
             print("[CKPT] Restored item comment fusion MLP.")
         if not args.eval_only:
             opt.load_state_dict(ck['opt_state'])
@@ -459,7 +476,7 @@ def main(args):
     print("== GraphSAGE (mean/std) =="); print(rep)
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(conflict_handler="resolve")
     ap.add_argument("--category", default="Video_Games", help="Category to train on; default Video_Games.")
     ap.add_argument("--dataset-dir", default="data/loaded_data", help="Directory with preprocessed artifacts.")
     ap.add_argument("--use-a2", action="store_true", help="Load A^2 + A enriched graph.")
@@ -468,7 +485,7 @@ if __name__ == "__main__":
     ap.add_argument("--out", type=int, default=64)
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=4096)
-    ap.add_argument("--negs", type=int, default=1)
+    ap.add_argument("--negs", type=int, default=5)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--wd", type=float, default=1e-4)
     ap.add_argument("--k", type=int, default=200)
@@ -479,7 +496,7 @@ if __name__ == "__main__":
     ap.add_argument("--checkpoint-dir", default="checkpoints", help="Directory to store training checkpoints.")
     ap.add_argument("--resume-checkpoint", default=None, help="Path to checkpoint to resume from.")
     ap.add_argument("--eval-only", action="store_true", help="Skip training; just evaluate loaded checkpoint/model.")
-    ap.add_argument("--save-every", type=int, default=100, help="Save checkpoint every N epochs.")
+    ap.add_argument("--save-every", type=int, default=1000, help="Save checkpoint every N epochs.")
     ap.add_argument("--use-comment-user", action="store_true",
                     help="Fuse aggregated comment embeddings into user features.")
     ap.add_argument("--use-comment-item", action="store_true",

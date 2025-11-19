@@ -17,8 +17,10 @@ python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3  --use-rating --use-comment-item
 --use-comment-user
 ## (1.9) use a2-hop with rating
-python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --use-a2 --use rating --fusion-out 256 --fusion-hidden 256
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --use-a2 --use rating --fusion-out 256 --fusion-hid 256
 ## (1.10) train for 1000 epoch with lr to be 1e-3
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 1000 --lr 1e-3 --hidden 128 --out 64
 ## (1.11) train for 1000 epoch with lr to be 5e-4
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 1000 --lr 5e-4 --hidden 128 --out 64
+## (1.12) use both user and item comment with 1000 epochs (ZHANG Xingjian)
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 1000 --lr 1e-4  --use-rating --use-comment-item --use-comment-user --batch 512 --hidden 256 --out 256 --fusion-out 256 --fusion-hid 256
