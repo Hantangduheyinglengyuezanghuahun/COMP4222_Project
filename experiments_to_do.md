@@ -9,6 +9,7 @@ std   0.021187  0.260732  0.123383
 ## (1.2) Use a2-hop
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --use-a2
 
+
           P@10      R@20   NDCG@10
 mean  0.004562  0.070893  0.023601
 std   0.020866  0.256648  0.119724
