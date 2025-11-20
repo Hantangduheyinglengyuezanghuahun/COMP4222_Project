@@ -50,8 +50,15 @@ python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 128
 
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 64
-
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004610  0.072339  0.024191
+std   0.020971  0.259050  0.122192
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 128
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004448  0.069479  0.023064
+std   0.020616  0.254269  0.118823
 
 # Try different dropout from [0.1, 0.2, 0.3, 0.4, 0.5]
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 64 --dropout <your_drop_out_rate>
@@ -77,9 +84,9 @@ Results:
 
 |  \alpha |  0.1  |  0.15  |  0.2  |  0.5  |  0.8  |
 | --------| ----- |  ----- |------ | ----- | ----- |
-|P@10||||||
-|R@20||||||
-|ndcg@20||||||
+|P@10|0.005233|0.005484|0.005516|||
+|R@20|0.078639|0.081773|0.082744|||
+|ndcg@20|0.028585|0.029892|0.030161|||
 
 |  iter|  40  |  50 | 100 |
 | --------| ----- |  ----- | ------|
