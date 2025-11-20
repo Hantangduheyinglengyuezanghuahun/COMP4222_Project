@@ -116,12 +116,48 @@ std   0.020454  0.254001  0.117759
 # Try different dropout from [0.1, 0.2, 0.3, 0.4, 0.5]
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 64 --dropout <your_drop_out_rate>
 
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004298  0.067189  0.022039
+std   0.020282  0.250351  0.115321
+
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004724  0.073194  0.024777
+std   0.021216  0.260456  0.123834
+
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004752  0.073605  0.025010
+std   0.021275  0.261129  0.124338
+
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004638  0.071115  0.024427
+std   0.021031  0.257018  0.123237
+
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004679  0.072339  0.024605
+std   0.021119  0.259050  0.123536
+
 # Try different dimensions of node2vec embedding
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 64 --n2v-dim 64
 (The default is 128, run dataset/precompute_node2vec.py first)
 
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004776  0.074576  0.025004
+std   0.021326  0.262708  0.124272
+
 # Try different numbers of negs, save evaluate every 10 epoch
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --negs 1 --eval-during-training --eval-every 10
+
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004742  0.074028  0.024615
+std   0.021255  0.261817  0.122466
+
 
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --negs 10 --eval-during-training --eval-every 10
 
