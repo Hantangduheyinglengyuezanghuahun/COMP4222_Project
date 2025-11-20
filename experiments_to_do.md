@@ -108,6 +108,11 @@ std   0.020459  0.253589  0.118003
 
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 128
 
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004375  0.069321  0.022717
+std   0.020454  0.254001  0.117759
+
 # Try different dropout from [0.1, 0.2, 0.3, 0.4, 0.5]
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 64 --dropout <your_drop_out_rate>
 
