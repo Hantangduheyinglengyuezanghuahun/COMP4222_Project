@@ -101,6 +101,11 @@ std   0.021362  0.262194  0.124225
 
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 64
 
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004377  0.069078  0.022748
+std   0.020459  0.253589  0.118003
+
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 128
 
 # Try different dropout from [0.1, 0.2, 0.3, 0.4, 0.5]
