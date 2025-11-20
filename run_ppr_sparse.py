@@ -144,6 +144,12 @@ def main(args):
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     # Final sparse save
     S = sp.csr_matrix((vals, (rows, cols)), shape=(len(users_row_sparse), I))
+    # Append alpha and iters to the final output filenames
+    tag = f"_a{args.alpha:g}_it{args.iters}"
+    sp_path = Path(args.scores_path)
+    args.scores_path = str(sp_path.with_name(f"{sp_path.stem}{tag}{sp_path.suffix}"))
+    mp_path = Path(args.meta_path)
+    args.meta_path = str(mp_path.with_name(f"{mp_path.stem}{tag}{mp_path.suffix}"))
     sp.save_npz(Path(args.scores_path), S)
     with open(Path(args.meta_path), "wb") as f:
         pickle.dump({'users': users_row_sparse, 'items': [str(x) for x in i_idx], 'args': vars(args)}, f)
