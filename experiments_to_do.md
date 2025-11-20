@@ -48,7 +48,10 @@ python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --
 
 # Try different hidden and out
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 128
-
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004793  0.074260  0.025079
+std   0.021362  0.262194  0.124225
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 64
 
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 64 --out 128
