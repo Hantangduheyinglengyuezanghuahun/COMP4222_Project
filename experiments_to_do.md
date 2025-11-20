@@ -2,6 +2,7 @@
 ## (1.1) Base (No rating, no a2 hop, no comment embedding, n2v 128)
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 64
 
+== GraphSAGE (mean/std) ==
           P@10      R@20   NDCG@10
 mean  0.004711  0.073363  0.024682
 std   0.021187  0.260732  0.123383
@@ -9,7 +10,7 @@ std   0.021187  0.260732  0.123383
 ## (1.2) Use a2-hop
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --use-a2
 
-
+== GraphSAGE (mean/std) ==
           P@10      R@20   NDCG@10
 mean  0.004562  0.070893  0.023601
 std   0.020866  0.256648  0.119724
@@ -17,6 +18,7 @@ std   0.020866  0.256648  0.119724
 ## (1.3) use 64 out dim for n2v
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --use-a2 --n2v-dim 64 
 
+== GraphSAGE (mean/std) ==
           P@10      R@20   NDCG@10
 mean  0.004148  0.06753  0.021108
 std   0.019941  0.250952  0.112595
@@ -24,6 +26,7 @@ std   0.019941  0.250952  0.112595
 ## (1.4) Use rating
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3  --use-rating --fusion-out 256 --fusion-hidden 256
 
+== GraphSAGE (mean/std) ==
           P@10      R@20   NDCG@10
 mean  0.004736  0.074154  0.024545
 std   0.021241  0.262023  0.12226
@@ -31,6 +34,7 @@ std   0.021241  0.262023  0.12226
 ## (1.5) change hidden and out
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 128
 
+== GraphSAGE (mean/std) ==
           P@10      R@20   NDCG@10
 mean  0.004748  0.073722  0.025326
 std   0.021266  0.261319  0.126101
@@ -59,6 +63,7 @@ python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --
 ## (1.9) use a2-hop with rating
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --use-a2 --use-rating --fusion-out 256 --fusion-hid 256
 
+== GraphSAGE (mean/std) ==
           P@10      R@20   NDCG@10
 mean  0.004619  0.073869  0.023401
 std   0.02099  0.261559  0.122620
@@ -66,6 +71,7 @@ std   0.02099  0.261559  0.122620
 ## (1.10) train for 1000 epoch with lr to be 1e-3
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 1000 --lr 1e-3 --hidden 128 --out 64
 
+== GraphSAGE (mean/std) ==
           P@10      R@20   NDCG@10
 mean  0.004882  0.075737  0.025559
 std   0.021549  0.264578  0.125298
@@ -73,6 +79,7 @@ std   0.021549  0.264578  0.125298
 ## (1.11) train for 1000 epoch with lr to be 5e-4
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 1000 --lr 5e-4 --hidden 128 --out 64
 
+== GraphSAGE (mean/std) ==
           P@10      R@20   NDCG@10
 mean  0.004732  0.073078  0.024508
 std   0.021232  0.260266  0.122052
