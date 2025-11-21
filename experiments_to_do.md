@@ -90,7 +90,54 @@ python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --
 # Ablation Study
 ## Run the pipeline and evaluate every 10 epochs. (Codes need to be changed slightly)
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --eval-during-training --eval-every 10
-
+== Periodic Eval (epoch 10) ==
+          P@10      R@20   NDCG@10
+mean  0.004244  0.067073  0.021791
+std   0.020160  0.250150  0.114756
+== Periodic Eval (epoch 20) ==
+          P@10      R@20   NDCG@10
+mean  0.004481  0.070872  0.023196
+std   0.020688  0.256613  0.118881
+== Periodic Eval (epoch 30) ==
+          P@10      R@20   NDCG@10
+mean  0.004755  0.074270  0.024886
+std   0.021281  0.262212  0.123832
+== Periodic Eval (epoch 40) ==
+          P@10     R@20   NDCG@10
+mean  0.004755  0.07464  0.024924
+std   0.021281  0.26281  0.123842
+== Periodic Eval (epoch 50) ==
+          P@10      R@20   NDCG@10
+mean  0.004851  0.075399  0.025507
+std   0.021484  0.264036  0.125411
+== Periodic Eval (epoch 60) ==
+          P@10      R@20   NDCG@10
+mean  0.004948  0.076634  0.025992
+std   0.021687  0.266011  0.126663
+== Periodic Eval (epoch 70) ==
+          P@10      R@20   NDCG@10
+mean  0.004950  0.075980  0.025904
+std   0.021692  0.264967  0.126232
+== Periodic Eval (epoch 80) ==
+          P@10      R@20   NDCG@10
+mean  0.004966  0.076697  0.026127
+std   0.021725  0.266112  0.127155
+== Periodic Eval (epoch 90) ==
+          P@10      R@20   NDCG@10
+mean  0.004961  0.076096  0.026018
+std   0.021714  0.265153  0.126582
+== Periodic Eval (epoch 100) ==
+          P@10      R@20   NDCG@10
+mean  0.004926  0.076096  0.026041
+std   0.021641  0.265153  0.127171
+== Periodic Eval (epoch 110) ==
+          P@10      R@20   NDCG@10
+mean  0.004874  0.074619  0.025639
+std   0.021533  0.262776  0.125753
+== Periodic Eval (epoch 120) ==
+          P@10      R@20   NDCG@10
+mean  0.004999  0.076381  0.026200
+std   0.021792  0.265608  0.127064
 # Try different hidden and out
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 128
 
