@@ -138,6 +138,18 @@ std   0.021533  0.262776  0.125753
           P@10      R@20   NDCG@10
 mean  0.004999  0.076381  0.026200
 std   0.021792  0.265608  0.127064
+== Periodic Eval (epoch 130) ==
+          P@10      R@20   NDCG@10
+mean  0.004861  0.075188  0.025514
+std   0.021504  0.263696  0.125412
+== Periodic Eval (epoch 140) ==
+          P@10      R@20   NDCG@10
+mean  0.005005  0.077489  0.026389
+std   0.021805  0.267367  0.128017
+== Periodic Eval (epoch 150) ==
+          P@10      R@20   NDCG@10
+mean  0.004902  0.076033  0.025724
+std   0.021591  0.265052  0.126025
 # Try different hidden and out
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 128
 
@@ -230,9 +242,9 @@ Results:
 
 |  iter|  40  |  50 | 100 |
 | --------| ----- |  ----- | ------|
-|P@10|||
-|R@20|||
-|ndcg@20|||
+|P@10|0.005483|||
+|R@20|0.081626|||
+|ndcg@20|0.029883|||
 
 # Run ppr with the combination of the best resul above
 
