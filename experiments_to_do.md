@@ -224,7 +224,17 @@ std   0.021255  0.261817  0.122466
 
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --negs 10 --eval-during-training --eval-every 10
 
-python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --negs 10 --eval-during-training --eval-every 10
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004915  0.075779  0.026078
+std   0.021619  0.264646  0.127370
+
+python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 300 --lr 1e-3 --hidden 128 --out 64 --negs 100 --eval-during-training --eval-every 10
+
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.004413  0.068118  0.023354
+std   0.020539  0.251950  0.121043
 
 # Try different alpha and iters for ppr 
 
