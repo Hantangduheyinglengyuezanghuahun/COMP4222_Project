@@ -150,6 +150,38 @@ std   0.021805  0.267367  0.128017
           P@10      R@20   NDCG@10
 mean  0.004902  0.076033  0.025724
 std   0.021591  0.265052  0.126025
+== Periodic Eval (epoch 160) ==
+          P@10      R@20   NDCG@10
+mean  0.004955  0.076391  0.026476
+std   0.021700  0.265625  0.129033
+== Periodic Eval (epoch 170) ==
+          P@10      R@20   NDCG@10
+mean  0.004979  0.077193  0.026396
+std   0.021751  0.266899  0.128237
+== Periodic Eval (epoch 180) ==
+          P@10      R@20   NDCG@10
+mean  0.004909  0.075843  0.026095
+std   0.021606  0.264748  0.127844
+== Periodic Eval (epoch 190) ==
+          P@10      R@20   NDCG@10
+mean  0.004943  0.076782  0.026262
+std   0.021676  0.266246  0.128208
+== Periodic Eval (epoch 200) ==
+          P@10      R@20   NDCG@10
+mean  0.005046  0.077436  0.026692
+std   0.021890  0.267284  0.129062
+== Periodic Eval (epoch 210) ==
+          P@10      R@20   NDCG@10
+mean  0.004915  0.076486  0.026072
+std   0.021619  0.265776  0.127638
+== Periodic Eval (epoch 220) ==
+          P@10      R@20   NDCG@10
+mean  0.004841  0.075568  0.025649
+std   0.021462  0.264307  0.126340
+== Periodic Eval (epoch 230) ==
+          P@10      R@20   NDCG@10
+mean  0.004896  0.075421  0.026014
+std   0.021580  0.264070  0.127580
 # Try different hidden and out
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --hidden 128 --out 128
 
