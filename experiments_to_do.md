@@ -60,6 +60,12 @@ std   0.021151  0.261542  0.122596
 ## (1.8) use both user and item
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3  --use-rating --use-comment-item
 --use-comment-user
+
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.003358  0.053714  0.017046
+std   0.018014  0.225453  0.101412
+
 ## (1.9) use a2-hop with rating
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 120 --lr 1e-3 --use-a2 --use-rating --fusion-out 256 --fusion-hid 256
 
@@ -86,6 +92,11 @@ std   0.021232  0.260266  0.122052
 
 ## (1.12) use both user and item comment with 1000 epochs (ZHANG Xingjian)
 python run_graphsage.py --category Video_Games --dataset-dir data/loaded_data --epoch 1000 --lr 1e-4  --use-rating --use-comment-item --use-comment-user --batch 512 --hidden 256 --out 256 --fusion-out 256 --fusion-hid 256
+
+== GraphSAGE (mean/std) ==
+          P@10      R@20   NDCG@10
+mean  0.003976  0.063517  0.020094
+std   0.019540  0.243892  0.109533
 
 # Ablation Study
 ## Run the pipeline and evaluate every 10 epochs. (Codes need to be changed slightly)
