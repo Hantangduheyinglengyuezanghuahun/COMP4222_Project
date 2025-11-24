@@ -353,4 +353,4 @@ gamma     P@10     R@20  NDCG@10
 
 Best gamma by NDCG@10: 0.30 | P=0.0061 R=0.0917 NDCG=0.0333
 
-python fuse_graphsage_ppr.py --category Video_Games --gs-ckpt checkpoints/Video_Games_graphsage_A2_plus_A_noRating_noTextUsers_noTextItems_n2v128_noFusion_drop0p20_hidden128_out64_final_119.pt --ppr-scores checkpoints_ppr/ppr_scores_a0.15_it30.npz --ppr-meta checkpoints_ppr/ppr_scores.meta_a0.15_it30.pkl --use-rating --norm minmax --filter-seen --gamma-step 0.1
+python fuse_graphsage_ppr.py --category Video_Games --gs-ckpt checkpoints/Video_Games_graphsage_A2_plus_A_noRating_noTextUsers_noTextItems_n2v128_noFusion_drop0p20_hidden128_out64_final_119.pt --ppr-scores checkpoints_ppr/ppr_scores_a0.15_it30.npz --ppr-meta checkpoints_ppr/ppr_scores.meta_a0.15_it30.pkl --use-rating --norm minmax --filter-seen --gamma-step 0.1 --use-a2
