@@ -335,3 +335,22 @@ gamma     P@10     R@20  NDCG@10
    1.0 0.005484 0.081773 0.029892
 
 Best gamma by NDCG@10: 0.40 | P=0.0056 R=0.0838 NDCG=0.0305
+
+python fuse_graphsage_ppr.py --category Video_Games --gs-ckpt checkpoints/Video_Games_graphsage_A_noRating_noTextUsers_noTextItems_n2v128_noFusion_drop0p20_hidden128_out64_negs5_final_299.pt --ppr-scores checkpoints_ppr/ppr_scores_a0.15_it30.npz --ppr-meta checkpoints_ppr/ppr_scores.meta_a0.15_it30.pkl --use-rating --norm minmax --filter-seen --gamma-step 0.1
+
+gamma     P@10     R@20  NDCG@10
+   0.0 0.004958 0.076444 0.026153
+   0.1 0.005749 0.085752 0.031288
+   0.2 0.006075 0.090205 0.033184
+   0.3 0.006106 0.091735 0.033300
+   0.4 0.006088 0.091587 0.032978
+   0.5 0.005971 0.089994 0.032355
+   0.6 0.005843 0.088200 0.031791
+   0.7 0.005748 0.086427 0.031290
+   0.8 0.005674 0.084802 0.030840
+   0.9 0.005569 0.083113 0.030341
+   1.0 0.005484 0.081773 0.029892
+
+Best gamma by NDCG@10: 0.30 | P=0.0061 R=0.0917 NDCG=0.0333
+
+python fuse_graphsage_ppr.py --category Video_Games --gs-ckpt checkpoints/Video_Games_graphsage_A2_plus_A_noRating_noTextUsers_noTextItems_n2v128_noFusion_drop0p20_hidden128_out64_final_119.pt --ppr-scores checkpoints_ppr/ppr_scores_a0.15_it30.npz --ppr-meta checkpoints_ppr/ppr_scores.meta_a0.15_it30.pkl --use-rating --norm minmax --filter-seen --gamma-step 0.1
