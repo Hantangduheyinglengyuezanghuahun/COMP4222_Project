@@ -319,8 +319,19 @@ Results:
 # Run ppr with the combination of the best resul above
 
 # fuse graphsage with the ppr (The checkpoints can be found in google drive)
-run fuse_graphsage_ppr.py --category Video_Games --gs-ckpt checkpoints/Video_Games_graphsage_A_withRating_noTextUsers_noTextItems_n2v128_fusionOut256_fusionHid256_drop0p20_hidden128_out64_negs5_final_3999.pt --ppr-scores <path-to-your-ppr-checkpoints> --ppr-meta <path-to-your-ppr-meta> --use-rating --norm minmax --filter-seen --gamma-step 0.1
+python fuse_graphsage_ppr.py --category Video_Games --gs-ckpt checkpoints/Video_Games_graphsage_A_withRating_noTextUsers_noTextItems_n2v128_fusionOut256_fusionHid256_drop0p20_hidden128_out64_negs5_final_3999.pt --ppr-scores checkpoints_ppr/ppr_scores_a0.15_it30.npz --ppr-meta checkpoints_ppr/ppr_scores.meta_a0.15_it30.pkl --use-rating --norm minmax --filter-seen --gamma-step 0.1
 
+gamma     P@10     R@20  NDCG@10
+   0.0 0.002669 0.043889 0.013303
+   0.1 0.004850 0.070503 0.026611
+   0.2 0.005474 0.080043 0.029803
+   0.3 0.005612 0.082881 0.030492
+   0.4 0.005614 0.083810 0.030542
+   0.5 0.005598 0.083821 0.030458
+   0.6 0.005576 0.083166 0.030354
+   0.7 0.005563 0.082902 0.030235
+   0.8 0.005528 0.082596 0.030101
+   0.9 0.005504 0.082280 0.029970
+   1.0 0.005484 0.081773 0.029892
 
-
-
+Best gamma by NDCG@10: 0.40 | P=0.0056 R=0.0838 NDCG=0.0305
